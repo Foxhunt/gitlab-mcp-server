@@ -38,12 +38,19 @@ const isValidGetIssueNotesArgs = (
 
 const isValidSearchArgs = (
   args: any
-): args is { scope: string; search: string } => {
+): args is {
+  scope: string;
+  search: string;
+  projectId?: string;
+  groupId?: string;
+} => {
   return (
     typeof args === "object" &&
     args !== null &&
     typeof args.scope === "string" &&
-    typeof args.search === "string"
+    typeof args.search === "string" &&
+    (args.projectId === undefined || typeof args.projectId === "string") &&
+    (args.groupId === undefined || typeof args.groupId === "string")
   );
 };
 
@@ -149,12 +156,34 @@ class GitlabServer {
           inputSchema: {
             type: "object",
             properties: {
-              projectId: {
+              action: {
                 type: "string",
-                description: "Project ID",
+                description:
+                  "The action to be filtered. Can be `assigned`, `mentioned`, `build_failed`, `marked`, `approval_required`, `unmergeable`, `directly_addressed`, `merge_train_removed` or `member_access_requested`.",
+              },
+              author_id: {
+                type: "number",
+                description: "The ID of an author",
+              },
+              project_id: {
+                type: "number",
+                description: "The ID of a project",
+              },
+              group_id: {
+                type: "number",
+                description: "The ID of a group",
+              },
+              state: {
+                type: "string",
+                description:
+                  "The state of the to-do item. Can be either `pending` or `done`",
+              },
+              type: {
+                type: "string",
+                description:
+                  "The type of to-do item. Can be either `Issue`, `MergeRequest`, `Commit`, `Epic`, `DesignManagement::Design`, `AlertManagement::Alert`, `Project`, `Namespace` or `Vulnerability`",
               },
             },
-            required: ["projectId"],
           },
         },
         {
@@ -181,10 +210,14 @@ class GitlabServer {
           inputSchema: {
             type: "object",
             properties: {
+              projectId: {
+                type: "string",
+                description: "Project ID to search within (optional)",
+              },
               scope: {
                 type: "string",
                 description:
-                  "The scope to search in.  Values include `projects`, `issues`, `merge_requests`, `milestones`, `snippet_titles`, and `users`. Additional scopes are `wiki_blobs`, `commits`, `blobs`, and `notes`.",
+                  "The scope to search in. Values include `projects`, `issues`, `merge_requests`, `milestones`, `snippet_titles`, and `users`. Additional scopes are `wiki_blobs` (for wiki page content), `commits`, `blobs`, and `notes`.",
                 enum: [
                   "projects",
                   "issues",
@@ -231,12 +264,33 @@ class GitlabServer {
           inputSchema: {
             type: "object",
             properties: {
-              action: { type: "string" },
-              author_id: { type: "number" },
-              project_id: { type: "number" },
-              group_id: { type: "number" },
-              state: { type: "string" },
-              type: { type: "string" },
+              action: {
+                type: "string",
+                description:
+                  "The action to be filtered. Can be `assigned`, `mentioned`, `build_failed`, `marked`, `approval_required`, `unmergeable`, `directly_addressed`, `merge_train_removed` or `member_access_requested`.",
+              },
+              author_id: {
+                type: "number",
+                description: "The ID of an author",
+              },
+              project_id: {
+                type: "number",
+                description: "The ID of a project",
+              },
+              group_id: {
+                type: "number",
+                description: "The ID of a group",
+              },
+              state: {
+                type: "string",
+                description:
+                  "The state of the to-do item. Can be either `pending` or `done`",
+              },
+              type: {
+                type: "string",
+                description:
+                  "The type of to-do item. Can be either `Issue`, `MergeRequest`, `Commit`, `Epic`, `DesignManagement::Design`, `AlertManagement::Alert`, `Project`, `Namespace` or `Vulnerability`",
+              },
             },
             required: [],
           },
@@ -328,10 +382,16 @@ class GitlabServer {
               "Invalid search arguments"
             );
           }
-          return this.search(
-            request.params.arguments.scope,
-            request.params.arguments.search
-          );
+          return request.params.arguments.projectId
+            ? this.search(
+                request.params.arguments.scope,
+                request.params.arguments.search,
+                request.params.arguments.projectId
+              )
+            : this.search(
+                request.params.arguments.scope,
+                request.params.arguments.search
+              );
         case "get_issue":
           if (!isValidGetIssueArgs(request.params.arguments)) {
             throw new McpError(
@@ -553,14 +613,17 @@ class GitlabServer {
     }
   }
 
-  private async search(scope: string, searchTerm: string) {
+  private async search(scope: string, searchTerm: string, projectId?: string) {
     try {
-      const response = await this.axiosInstance.get("search", {
-        params: {
-          scope: scope,
-          search: searchTerm,
-        },
-      });
+      const response = await this.axiosInstance.get(
+        projectId ? `projects/${projectId}/search` : "search",
+        {
+          params: {
+            scope: scope,
+            search: searchTerm,
+          },
+        }
+      );
 
       return {
         content: [
