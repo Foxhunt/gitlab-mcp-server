@@ -10,11 +10,14 @@ import {
 import axios from "axios";
 
 const API_TOKEN = process.env.GITLAB_API_TOKEN;
-const GITLAB_HOST =
-  process.env.GITLAB_HOST || "https://projectbase.medien.hs-duesseldorf.de";
+const GITLAB_HOST = process.env.GITLAB_HOST;
 
 if (!API_TOKEN) {
   throw new Error("GITLAB_API_TOKEN environment variable is required");
+}
+
+if (!GITLAB_HOST) {
+  throw new Error("GITLAB_HOST environment variable is required");
 }
 
 const isValidListProjectsArgs = (args: any): args is {} =>
