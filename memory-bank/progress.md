@@ -9,6 +9,10 @@
 - `search` tool implemented (basic functionality for `projects` and `issues` scopes).
 - Basic error handling.
 - Server added to MCP settings.
+- `get_issue` tool implemented.
+- `get_todos` tool implemented.
+- `get_wiki_page` tool implemented.
+- `list_wiki_pages` tool implemented.
 
 ## What's Left to Build
 

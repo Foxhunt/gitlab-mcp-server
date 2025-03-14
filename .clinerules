@@ -1,0 +1,18 @@
+# .clinerules - GitLab MCP Server
+
+## Project-Specific Patterns
+
+- **API Token:** The server uses a GitLab API token stored in the `GITLAB_API_TOKEN` environment variable for authentication.
+- **Host:** The GitLab host URL is configurable via the `GITLAB_HOST` environment variable, defaulting to `https://projectbase.medien.hs-duesseldorf.de`.
+- **Error Handling:** The server implements basic error handling for common GitLab API errors (401, 403, 404).
+- **Tool Structure:** Each tool corresponds to a specific GitLab API endpoint and has a corresponding handler function.
+- **Input Validation:** Input validation is performed using type checking and custom validation functions.
+
+## User Preferences and Workflow
+- The user prefers to use `curl` to get the documentation
+
+## Tool Usage Patterns
+- The `get_issue` tool has been added to retrieve a single issue from a project using its ID and IID.
+- The `get_todos` tool retrieves a list of to-do items with optional filters.
+- The `get_wiki_page` tool retrieves a specific wiki page by project ID and slug.
+- The `list_wiki_pages` tool retrieves all wiki pages for a given project.

@@ -44,6 +44,56 @@ const isValidSearchArgs = (
   );
 };
 
+const isValidGetIssueArgs = (
+  args: any
+): args is { projectId: string; issueIid: string } =>
+  typeof args === "object" &&
+  args !== null &&
+  typeof args.projectId === "string" &&
+  typeof args.issueIid === "string";
+
+const isValidGetTodosArgs = (
+  args: any
+): args is {
+  action?: string;
+  author_id?: number;
+  project_id?: number;
+  group_id?: number;
+  state?: string;
+  type?: string;
+} => {
+  return typeof args === "object" && args !== null;
+};
+
+const isValidGetWikiPageArgs = (
+  args: any
+): args is {
+  projectId: string;
+  slug: string;
+  render_html?: boolean;
+  version?: string;
+} => {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    typeof args.projectId === "string" &&
+    typeof args.slug === "string"
+  );
+};
+
+const isValidListWikiPagesArgs = (
+  args: any
+): args is {
+  projectId: string;
+  with_content?: boolean;
+} => {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    typeof args.projectId === "string"
+  );
+};
+
 class GitlabServer {
   private server: Server;
   private axiosInstance;
@@ -153,6 +203,85 @@ class GitlabServer {
             required: ["scope", "search"],
           },
         },
+        {
+          name: "get_issue",
+          description: "Get a specific issue from a project",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: {
+                type: "string",
+                description:
+                  "The ID or URL-encoded path of the project owned by the authenticated user",
+              },
+              issueIid: {
+                type: "string",
+                description: "The internal ID of a project's issue",
+              },
+            },
+            required: ["projectId", "issueIid"],
+          },
+        },
+        {
+          name: "get_todos",
+          description: "Get a list of to-do items",
+          inputSchema: {
+            type: "object",
+            properties: {
+              action: { type: "string" },
+              author_id: { type: "number" },
+              project_id: { type: "number" },
+              group_id: { type: "number" },
+              state: { type: "string" },
+              type: { type: "string" },
+            },
+            required: [],
+          },
+        },
+        {
+          name: "get_wiki_page",
+          description: "Get a wiki page for a given project",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: {
+                type: "string",
+                description: "The ID or URL-encoded path of the project",
+              },
+              slug: {
+                type: "string",
+                description: "URL encoded slug of the wiki page",
+              },
+              render_html: {
+                type: "boolean",
+                description: "Render HTML of the page",
+              },
+              version: {
+                type: "string",
+                description: "Wiki page version SHA",
+              },
+            },
+            required: ["projectId", "slug"],
+          },
+        },
+        {
+          name: "list_wiki_pages",
+          description: "Get all wiki pages for a given project.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: {
+                type: "string",
+                description: "The ID or URL-encoded path of the project",
+              },
+              with_content: {
+                type: "boolean",
+                description: "Include pages' content",
+              },
+            },
+            required: ["projectId"],
+          },
+        },
       ],
     }));
 
@@ -200,6 +329,49 @@ class GitlabServer {
             request.params.arguments.scope,
             request.params.arguments.search
           );
+        case "get_issue":
+          if (!isValidGetIssueArgs(request.params.arguments)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              "Invalid get_issue arguments"
+            );
+          }
+          return this.getIssue(
+            request.params.arguments.projectId,
+            request.params.arguments.issueIid
+          );
+        case "get_todos":
+          if (!isValidGetTodosArgs(request.params.arguments)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              "Invalid get_todos arguments"
+            );
+          }
+          return this.getTodos(request.params.arguments);
+        case "get_wiki_page":
+          if (!isValidGetWikiPageArgs(request.params.arguments)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              "Invalid get_wiki_page arguments"
+            );
+          }
+          return this.getWikiPage(
+            request.params.arguments.projectId,
+            request.params.arguments.slug,
+            request.params.arguments.render_html,
+            request.params.arguments.version
+          );
+        case "list_wiki_pages":
+          if (!isValidListWikiPagesArgs(request.params.arguments)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              "Invalid list_wiki_pages arguments"
+            );
+          }
+          return this.listWikiPages(
+            request.params.arguments.projectId,
+            request.params.arguments.with_content
+          );
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -207,6 +379,175 @@ class GitlabServer {
           );
       }
     });
+  }
+
+  private async listWikiPages(projectId: string, withContent?: boolean) {
+    try {
+      const response = await this.axiosInstance.get(
+        `projects/${projectId}/wikis`,
+        {
+          params: {
+            with_content: withContent,
+          },
+        }
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message ?? error.message;
+        let specificMessage = `GitLab API error: ${errorMessage}`;
+        if (error.response?.status === 401) {
+          specificMessage = "Unauthorized: Please check your GitLab API token.";
+        } else if (error.response?.status === 403) {
+          specificMessage =
+            "Forbidden: You don't have permission to access this resource.";
+        } else if (error.response?.status === 404) {
+          specificMessage =
+            "Not Found: The project or wiki page was not found.";
+        }
+        return {
+          content: [{ type: "text", text: specificMessage }],
+          isError: true,
+        };
+      }
+      throw error;
+    }
+  }
+
+  private async getTodos(args: {
+    action?: string;
+    author_id?: number;
+    project_id?: number;
+    group_id?: number;
+    state?: string;
+    type?: string;
+  }) {
+    try {
+      const response = await this.axiosInstance.get("todos", {
+        params: {
+          action: args.action,
+          author_id: args.author_id,
+          project_id: args.project_id,
+          group_id: args.group_id,
+          state: args.state,
+          type: args.type,
+        },
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message ?? error.message;
+        let specificMessage = `GitLab API error: ${errorMessage}`;
+        if (error.response?.status === 401) {
+          specificMessage = "Unauthorized: Please check your GitLab API token.";
+        } else if (error.response?.status === 403) {
+          specificMessage =
+            "Forbidden: You don't have permission to access this resource.";
+        } else if (error.response?.status === 404) {
+          specificMessage = "Not Found: The project or issue was not found.";
+        }
+        return {
+          content: [{ type: "text", text: specificMessage }],
+          isError: true,
+        };
+      }
+      throw error;
+    }
+  }
+
+  private async getWikiPage(
+    projectId: string,
+    slug: string,
+    render_html?: boolean,
+    version?: string
+  ) {
+    try {
+      const response = await this.axiosInstance.get(
+        `projects/${projectId}/wikis/${slug}`,
+        {
+          params: {
+            render_html: render_html,
+            version: version,
+          },
+        }
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message ?? error.message;
+        let specificMessage = `GitLab API error: ${errorMessage}`;
+        if (error.response?.status === 401) {
+          specificMessage = "Unauthorized: Please check your GitLab API token.";
+        } else if (error.response?.status === 403) {
+          specificMessage =
+            "Forbidden: You don't have permission to access this resource.";
+        } else if (error.response?.status === 404) {
+          specificMessage =
+            "Not Found: The project or wiki page was not found.";
+        }
+        return {
+          content: [{ type: "text", text: specificMessage }],
+          isError: true,
+        };
+      }
+      throw error;
+    }
+  }
+
+  private async getIssue(projectId: string, issueIid: string) {
+    try {
+      const response = await this.axiosInstance.get(
+        `projects/${projectId}/issues/${issueIid}`
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message ?? error.message;
+        let specificMessage = `GitLab API error: ${errorMessage}`;
+        if (error.response?.status === 401) {
+          specificMessage = "Unauthorized: Please check your GitLab API token.";
+        } else if (error.response?.status === 403) {
+          specificMessage =
+            "Forbidden: You don't have permission to access this resource.";
+        } else if (error.response?.status === 404) {
+          specificMessage = "Not Found: The project or issue was not found.";
+        }
+        return {
+          content: [{ type: "text", text: specificMessage }],
+          isError: true,
+        };
+      }
+      throw error;
+    }
   }
 
   private async search(scope: string, searchTerm: string) {

@@ -59,4 +59,5 @@
     - https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/notes.md
     - https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/issue_links.md
     - https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/search.md
+    - https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/todos.md
     - https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/wikis.md
