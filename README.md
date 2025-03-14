@@ -1,32 +1,21 @@
-# gitlab-server MCP Server
+# GitLab MCP Server
 
-interact with a gitlab server
+interact with a GitLab server.
 
-This is a TypeScript-based MCP server that implements a simple notes system. It demonstrates core MCP concepts by providing:
-
-- Resources representing text notes with URIs and metadata
-- Tools for creating new notes
-- Prompts for generating summaries of notes
+This is a TypeScript-based MCP server that interacts with a self-hosted GitLab instance. The server provides tools to fetch and manage GitLab data, specifically projects, issues, and issue notes (comments). The available tools are: `list_projects`, `get_issues`, `get_issue_notes`, `search`, `get_issue`, `get_todos`, `get_wiki_page`, and `list_wiki_pages`.
 
 ## Features
 
-### Resources
+This GitLab MCP server provides the following tools:
 
-- List and access notes via `note://` URIs
-- Each note has a title, content and metadata
-- Plain text mime type for simple content access
-
-### Tools
-
-- `create_note` - Create new text notes
-  - Takes title and content as required parameters
-  - Stores note in server state
-
-### Prompts
-
-- `summarize_notes` - Generate a summary of all stored notes
-  - Includes all note contents as embedded resources
-  - Returns structured prompt for LLM summarization
+- **`list_projects`**: Lists all projects accessible to the user.
+- **`get_issues`**: Gets issues for a specific project, with basic filtering.
+- **`get_issue_notes`**: Gets notes (comments) for a specific issue.
+- **`search`**: Searches for projects and issues based on a search term.
+- **`get_issue`**: Retrieves a specific issue from a project using its ID and IID.
+- **`get_todos`**: Retrieves a list of to-do items with optional filters.
+- **`get_wiki_page`**: Retrieves a specific wiki page by project ID and slug.
+- **`list_wiki_pages`**: Retrieves all wiki pages for a given project.
 
 ## Development
 
@@ -51,9 +40,6 @@ npm run watch
 ## Installation
 
 To use with Claude Desktop, add the server config:
-
-On MacOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 
 ```json
 {
