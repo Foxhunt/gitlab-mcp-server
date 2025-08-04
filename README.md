@@ -45,7 +45,11 @@ To use with Claude Desktop, add the server config:
 {
   "mcpServers": {
     "gitlab-server": {
-      "command": "/path/to/gitlab-server/build/index.js"
+      "command": "/path/to/gitlab-server/build/index.js",
+      "env": {
+        "GITLAB_API_TOKEN": "<Gitlab API Token >",
+        "GITLAB_HOST": "<GitLab Host URL>"
+      }
     }
   }
 }
