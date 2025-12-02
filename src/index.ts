@@ -53,11 +53,13 @@ const GetIssuesArgsSchema = z.object({
     ])
     .optional()
     .describe("The type of to-do item."),
+  page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 const GetIssueNotesArgsSchema = z.object({
   projectId: z.string().describe("Project ID"),
   issueIid: z.string().describe("Issue IID"),
+  page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 const SearchArgsSchema = z.object({
@@ -80,6 +82,7 @@ const SearchArgsSchema = z.object({
     ])
     .describe("The scope to search in."),
   search: z.string().describe("The search term."),
+  page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 const GetIssueArgsSchema = z.object({
@@ -127,6 +130,7 @@ const GetTodosArgsSchema = z.object({
     ])
     .optional()
     .describe("The type of to-do item."),
+  page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 const GetWikiPageArgsSchema = z.object({
@@ -139,6 +143,11 @@ const GetWikiPageArgsSchema = z.object({
 const ListWikiPagesArgsSchema = z.object({
   projectId: z.string().describe("The ID or URL-encoded path of the project"),
   with_content: z.boolean().optional().describe("Include pages' content"),
+  page: z.number().optional().describe("Page number (default: 1)"),
+});
+
+const ListProjectsArgsSchema = z.object({
+  page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 class GitlabServer {
@@ -200,32 +209,66 @@ class GitlabServer {
     };
   }
 
+  private createPaginatedResponse(data: any, headers: any) {
+    const page = parseInt(headers["x-page"] || "1", 10);
+    const perPage = parseInt(headers["x-per-page"] || "20", 10);
+    const totalPages = parseInt(headers["x-total-pages"] || "0", 10);
+    const totalItems = parseInt(headers["x-total"] || "0", 10);
+    const nextPage = parseInt(headers["x-next-page"] || "0", 10);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              data,
+              pagination: {
+                current_page: page,
+                per_page: perPage,
+                total_pages: totalPages > 0 ? totalPages : undefined,
+                total_items: totalItems > 0 ? totalItems : undefined,
+                next_page: nextPage > 0 ? nextPage : undefined,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
   private setupToolHandlers() {
     // Define tools using server.tool()
-    this.server.tool("list_projects", "List all projects", () =>
-      this.listProjects()
+    this.server.tool(
+      "list_projects",
+      "List all projects (paginated)",
+      ListProjectsArgsSchema.shape,
+      async (args) => this.listProjects(args)
     );
 
     this.server.tool(
       "get_issues",
-      "Get issues for a project or globally",
+      "Get issues for a project or globally (paginated)",
       GetIssuesArgsSchema.shape,
       async (args) => this.getIssues(args)
     );
 
     this.server.tool(
       "get_issue_notes",
-      "Get notes for an issue",
+      "Get notes for an issue (paginated)",
       GetIssueNotesArgsSchema.shape,
-      async ({ projectId, issueIid }) => this.getIssueNotes(projectId, issueIid)
+      async ({ projectId, issueIid, page }) =>
+        this.getIssueNotes(projectId, issueIid, page)
     );
 
     this.server.tool(
       "search",
-      "Search for projects, issues, merge requests, and more.",
+      "Search for projects, issues, merge requests, and more. (paginated)",
       SearchArgsSchema.shape,
-      async ({ scope, search, projectId }) =>
-        this.search(scope, search, projectId)
+      async ({ scope, search, projectId, page }) =>
+        this.search(scope, search, projectId, page)
     );
 
     this.server.tool(
@@ -237,7 +280,7 @@ class GitlabServer {
 
     this.server.tool(
       "get_todos",
-      "Get a list of to-do items",
+      "Get a list of to-do items (paginated)",
       GetTodosArgsSchema.shape,
       async (args) => this.getTodos(args)
     );
@@ -252,33 +295,32 @@ class GitlabServer {
 
     this.server.tool(
       "list_wiki_pages",
-      "Get all wiki pages for a given project.",
+      "Get all wiki pages for a given project. (paginated)",
       ListWikiPagesArgsSchema.shape,
-      async ({ projectId, with_content }) =>
-        this.listWikiPages(projectId, with_content)
+      async ({ projectId, with_content, page }) =>
+        this.listWikiPages(projectId, with_content, page)
     );
   }
 
   // --- Tool Implementation Methods ---
 
-  private async listWikiPages(projectId: string, withContent?: boolean) {
+  private async listWikiPages(
+    projectId: string,
+    withContent?: boolean,
+    page: number = 1
+  ) {
     try {
       const response = await this.axiosInstance.get(
         `projects/${projectId}/wikis`,
         {
           params: {
             with_content: withContent,
+            page: page,
+            per_page: 100,
           },
         }
       );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      return this.createPaginatedResponse(response.data, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
@@ -287,17 +329,14 @@ class GitlabServer {
   private async getTodos(args: z.infer<typeof GetTodosArgsSchema>) {
     try {
       const response = await this.axiosInstance.get("todos", {
-        params: args, // Pass validated args directly
+        params: {
+          ...args,
+          page: args.page || 1,
+          per_page: 100,
+        },
       });
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      return this.createPaginatedResponse(response.data, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
@@ -350,7 +389,12 @@ class GitlabServer {
     }
   }
 
-  private async search(scope: string, searchTerm: string, projectId?: string) {
+  private async search(
+    scope: string,
+    searchTerm: string,
+    projectId?: string,
+    page: number = 1
+  ) {
     try {
       const response = await this.axiosInstance.get(
         projectId
@@ -360,74 +404,39 @@ class GitlabServer {
           params: {
             scope: scope,
             search: searchTerm,
+            page: page,
+            per_page: 100,
           },
         }
       );
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      return this.createPaginatedResponse(response.data, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
   }
 
-  private async listProjects() {
+  private async listProjects(args: z.infer<typeof ListProjectsArgsSchema>) {
     try {
-      // Fetch all pages for projects
-      let projects: any[] = [];
-      let page = 1;
-      let totalPages = 1; // Start assuming 1 page
+      const response = await this.axiosInstance.get("projects", {
+        params: {
+          per_page: 100, // Use maximum page size
+          page: args.page || 1,
+          order_by: "id", // Consistent ordering
+          sort: "asc",
+          simple: true, // Use simple representation for efficiency
+        },
+      });
 
-      do {
-        const response = await this.axiosInstance.get("projects", {
-          params: {
-            per_page: 100, // Use maximum page size
-            page: page,
-            order_by: "id", // Consistent ordering
-            sort: "asc",
-            simple: true, // Use simple representation for efficiency
-          },
-        });
+      const projects = response.data.map((project: any) => ({
+        // Map simplified project data
+        id: project.id,
+        name: project.name,
+        web_url: project.web_url,
+        path_with_namespace: project.path_with_namespace, // Often useful
+      }));
 
-        projects = projects.concat(response.data);
-
-        // Get total pages from header if available
-        const totalPagesHeader = response.headers["x-total-pages"];
-        if (totalPagesHeader) {
-          totalPages = parseInt(totalPagesHeader, 10);
-        } else {
-          // If header is missing, stop if we got less than per_page items
-          if (response.data.length < 100) {
-            break;
-          }
-        }
-        page++;
-      } while (page <= totalPages);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              projects.map((project: any) => ({
-                // Map simplified project data
-                id: project.id,
-                name: project.name,
-                web_url: project.web_url,
-                path_with_namespace: project.path_with_namespace, // Often useful
-              })),
-              null,
-              2
-            ),
-          },
-        ],
-      };
+      return this.createPaginatedResponse(projects, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
@@ -439,116 +448,68 @@ class GitlabServer {
         ? `projects/${args.project_id}/issues`
         : "issues"; // Allow fetching all accessible issues if no project_id
 
-      // Fetch all pages for issues
-      let issues: any[] = [];
-      let page = 1;
-      let totalPages = 1;
-
-      const params = { ...args, per_page: 100, page: page };
+      const params = {
+        ...args,
+        per_page: 100,
+        page: args.page || 1,
+      };
       delete params.project_id; // Remove project_id if it was used for endpoint selection
 
-      do {
-        const response = await this.axiosInstance.get(endpoint, {
-          params: { ...params, page: page },
-        });
+      const response = await this.axiosInstance.get(endpoint, {
+        params: params,
+      });
 
-        issues = issues.concat(response.data);
+      const issues = response.data.map((issue: any) => ({
+        // Select relevant fields
+        id: issue.id,
+        iid: issue.iid,
+        project_id: issue.project_id,
+        title: issue.title,
+        state: issue.state,
+        web_url: issue.web_url,
+        created_at: issue.created_at,
+        updated_at: issue.updated_at,
+        author: issue.author?.username, // Optional chaining
+        assignees: issue.assignees?.map((a: any) => a.username), // Optional chaining
+        labels: issue.labels,
+      }));
 
-        const totalPagesHeader = response.headers["x-total-pages"];
-        if (totalPagesHeader) {
-          totalPages = parseInt(totalPagesHeader, 10);
-        } else {
-          if (response.data.length < 100) {
-            break;
-          }
-        }
-        page++;
-      } while (page <= totalPages);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              issues.map((issue: any) => ({
-                // Select relevant fields
-                id: issue.id,
-                iid: issue.iid,
-                project_id: issue.project_id,
-                title: issue.title,
-                state: issue.state,
-                web_url: issue.web_url,
-                created_at: issue.created_at,
-                updated_at: issue.updated_at,
-                author: issue.author?.username, // Optional chaining
-                assignees: issue.assignees?.map((a: any) => a.username), // Optional chaining
-                labels: issue.labels,
-              })),
-              null,
-              2
-            ),
-          },
-        ],
-      };
+      return this.createPaginatedResponse(issues, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
   }
 
-  private async getIssueNotes(projectId: string, issueIid: string) {
+  private async getIssueNotes(
+    projectId: string,
+    issueIid: string,
+    page: number = 1
+  ) {
     try {
-      // Fetch all pages for notes
-      let notes: any[] = [];
-      let page = 1;
-      let totalPages = 1;
-
-      do {
-        const response = await this.axiosInstance.get(
-          `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes`, // Ensure projectId is URL encoded
-          {
-            params: {
-              per_page: 100,
-              page: page,
-              sort: "asc", // Get notes in chronological order
-              order_by: "created_at",
-            },
-          }
-        );
-
-        notes = notes.concat(response.data);
-
-        const totalPagesHeader = response.headers["x-total-pages"];
-        if (totalPagesHeader) {
-          totalPages = parseInt(totalPagesHeader, 10);
-        } else {
-          if (response.data.length < 100) {
-            break;
-          }
-        }
-        page++;
-      } while (page <= totalPages);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              notes.map((note: any) => ({
-                id: note.id,
-                body: note.body,
-                author: note.author.username, // Use username
-                created_at: note.created_at,
-                updated_at: note.updated_at,
-                system: note.system, // Indicate if it's a system note
-                resolvable: note.resolvable,
-                confidential: note.confidential,
-              })),
-              null,
-              2
-            ),
+      const response = await this.axiosInstance.get(
+        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes`, // Ensure projectId is URL encoded
+        {
+          params: {
+            per_page: 100,
+            page: page,
+            sort: "asc", // Get notes in chronological order
+            order_by: "created_at",
           },
-        ],
-      };
+        }
+      );
+
+      const notes = response.data.map((note: any) => ({
+        id: note.id,
+        body: note.body,
+        author: note.author.username, // Use username
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+        system: note.system, // Indicate if it's a system note
+        resolvable: note.resolvable,
+        confidential: note.confidential,
+      }));
+
+      return this.createPaginatedResponse(notes, response.headers);
     } catch (error) {
       return this.handleApiError(error);
     }
