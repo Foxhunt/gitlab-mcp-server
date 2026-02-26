@@ -89,7 +89,7 @@ const GetIssueArgsSchema = z.object({
   projectId: z
     .string()
     .describe(
-      "The ID or URL-encoded path of the project owned by the authenticated user"
+      "The ID or URL-encoded path of the project owned by the authenticated user",
     ),
   issueIid: z.string().describe("The internal ID of a project's issue"),
 });
@@ -164,7 +164,7 @@ class GitlabServer {
         capabilities: {
           tools: {}, // Tools are now defined using server.tool()
         },
-      }
+      },
     );
 
     this.axiosInstance = axios.create({
@@ -231,7 +231,7 @@ class GitlabServer {
               },
             },
             null,
-            2
+            2,
           ),
         },
       ],
@@ -244,14 +244,14 @@ class GitlabServer {
       "list_projects",
       "List all projects (paginated)",
       ListProjectsArgsSchema.shape,
-      async (args) => this.listProjects(args)
+      async (args) => this.listProjects(args),
     );
 
     this.server.tool(
       "get_issues",
       "Get issues for a project or globally (paginated)",
       GetIssuesArgsSchema.shape,
-      async (args) => this.getIssues(args)
+      async (args) => this.getIssues(args),
     );
 
     this.server.tool(
@@ -259,7 +259,7 @@ class GitlabServer {
       "Get notes for an issue (paginated)",
       GetIssueNotesArgsSchema.shape,
       async ({ projectId, issueIid, page }) =>
-        this.getIssueNotes(projectId, issueIid, page)
+        this.getIssueNotes(projectId, issueIid, page),
     );
 
     this.server.tool(
@@ -267,21 +267,21 @@ class GitlabServer {
       "Search for projects, issues, merge requests, and more. (paginated)",
       SearchArgsSchema.shape,
       async ({ scope, search, projectId, page }) =>
-        this.search(scope, search, projectId, page)
+        this.search(scope, search, projectId, page),
     );
 
     this.server.tool(
       "get_issue",
       "Get a specific issue from a project",
       GetIssueArgsSchema.shape,
-      async ({ projectId, issueIid }) => this.getIssue(projectId, issueIid)
+      async ({ projectId, issueIid }) => this.getIssue(projectId, issueIid),
     );
 
     this.server.tool(
       "get_todos",
       "Get a list of to-do items (paginated)",
       GetTodosArgsSchema.shape,
-      async (args) => this.getTodos(args)
+      async (args) => this.getTodos(args),
     );
 
     this.server.tool(
@@ -289,7 +289,7 @@ class GitlabServer {
       "Get a wiki page for a given project",
       GetWikiPageArgsSchema.shape,
       async ({ projectId, slug, render_html, version }) =>
-        this.getWikiPage(projectId, slug, render_html, version)
+        this.getWikiPage(projectId, slug, render_html, version),
     );
 
     this.server.tool(
@@ -297,7 +297,7 @@ class GitlabServer {
       "Get all wiki pages for a given project. (paginated)",
       ListWikiPagesArgsSchema.shape,
       async ({ projectId, with_content, page }) =>
-        this.listWikiPages(projectId, with_content, page)
+        this.listWikiPages(projectId, with_content, page),
     );
   }
 
@@ -306,18 +306,18 @@ class GitlabServer {
   private async listWikiPages(
     projectId: string,
     withContent?: boolean,
-    page: number = 1
+    page: number = 1,
   ) {
     try {
       const response = await this.axiosInstance.get(
-        `projects/${projectId}/wikis`,
+        `projects/${encodeURIComponent(projectId)}/wikis`,
         {
           params: {
             with_content: withContent,
             page: page,
             per_page: 100,
           },
-        }
+        },
       );
       return this.createPaginatedResponse(response.data, response.headers);
     } catch (error) {
@@ -345,17 +345,17 @@ class GitlabServer {
     projectId: string,
     slug: string,
     render_html?: boolean,
-    version?: string
+    version?: string,
   ) {
     try {
       const response = await this.axiosInstance.get(
-        `projects/${projectId}/wikis/${encodeURIComponent(slug)}`, // Ensure slug is URL encoded
+        `projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
         {
           params: {
             render_html: render_html,
             version: version,
           },
-        }
+        },
       );
       return {
         content: [
@@ -373,7 +373,7 @@ class GitlabServer {
   private async getIssue(projectId: string, issueIid: string) {
     try {
       const response = await this.axiosInstance.get(
-        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}` // Ensure projectId is URL encoded
+        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}`, // Ensure projectId is URL encoded
       );
       return {
         content: [
@@ -392,7 +392,7 @@ class GitlabServer {
     scope: string,
     searchTerm: string,
     projectId?: string,
-    page: number = 1
+    page: number = 1,
   ) {
     try {
       const response = await this.axiosInstance.get(
@@ -406,7 +406,7 @@ class GitlabServer {
             page: page,
             per_page: 100,
           },
-        }
+        },
       );
 
       return this.createPaginatedResponse(response.data, response.headers);
@@ -482,7 +482,7 @@ class GitlabServer {
   private async getIssueNotes(
     projectId: string,
     issueIid: string,
-    page: number = 1
+    page: number = 1,
   ) {
     try {
       const response = await this.axiosInstance.get(
@@ -494,7 +494,7 @@ class GitlabServer {
             sort: "asc", // Get notes in chronological order
             order_by: "created_at",
           },
-        }
+        },
       );
 
       const notes = response.data.map((note: any) => ({
