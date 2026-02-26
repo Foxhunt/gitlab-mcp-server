@@ -11,8 +11,8 @@
 - Server added to MCP settings.
 - `get_issue` tool implemented.
 - `get_todos` tool implemented.
-- `get_wiki_page` tool implemented.
-- `list_wiki_pages` tool implemented.
+- `get_wiki_page` tool implemented (supports both numeric IDs and project path slugs).
+- `list_wiki_pages` tool implemented (supports both numeric IDs and project path slugs).
 
 ## What's Left to Build
 
@@ -30,3 +30,7 @@ The server is functional with basic read-only capabilities for projects, issues,
 ## Known Issues
 
 - None at this time.
+
+## Resolved Issues
+
+- Fixed: `get_wiki_page` and `list_wiki_pages` were missing `encodeURIComponent()` on `projectId`, causing 404 errors when using project path slugs (e.g. `dahm/frontred`). Now both numeric IDs and URL-encoded paths work.
