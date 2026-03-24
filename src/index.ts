@@ -183,7 +183,7 @@ class GitlabServer {
       },
       {
         capabilities: {
-          tools: {}, // Tools are now defined using server.tool()
+          tools: {}, // Tools are now defined using server.registerTool()
         },
       },
     );
@@ -260,78 +260,108 @@ class GitlabServer {
   }
 
   private setupToolHandlers() {
-    // Define tools using server.tool()
-    this.server.tool(
-      "list_projects",
-      "List all projects (paginated)",
-      ListProjectsArgsSchema.shape,
+    // Define tools using server.registerTool()
+    this.server.registerTool(
+      "gitlab_list_projects",
+      {
+        title: "List Projects",
+        description: "List all projects (paginated)",
+        inputSchema: ListProjectsArgsSchema,
+      },
       async (args) => this.listProjects(args),
     );
 
-    this.server.tool(
-      "get_issues",
-      "Get issues for a project or globally (paginated)",
-      GetIssuesArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_get_issues",
+      {
+        title: "Get Issues",
+        description: "Get issues for a project or globally (paginated)",
+        inputSchema: GetIssuesArgsSchema,
+      },
       async (args) => this.getIssues(args),
     );
 
-    this.server.tool(
-      "get_issue_notes",
-      "Get notes for an issue (paginated)",
-      GetIssueNotesArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_get_issue_notes",
+      {
+        title: "Get Issue Notes",
+        description: "Get notes for an issue (paginated)",
+        inputSchema: GetIssueNotesArgsSchema,
+      },
       async ({ projectId, issueIid, page }) =>
         this.getIssueNotes(projectId, issueIid, page),
     );
 
-    this.server.tool(
-      "search",
-      "Search for projects, issues, merge requests, and more. (paginated)",
-      SearchArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_search",
+      {
+        title: "Search",
+        description: "Search for projects, issues, merge requests, and more. (paginated)",
+        inputSchema: SearchArgsSchema,
+      },
       async ({ scope, search, projectId, page }) =>
         this.search(scope, search, projectId, page),
     );
 
-    this.server.tool(
-      "get_issue",
-      "Get a specific issue from a project",
-      GetIssueArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_get_issue",
+      {
+        title: "Get Issue",
+        description: "Get a specific issue from a project",
+        inputSchema: GetIssueArgsSchema,
+      },
       async ({ projectId, issueIid }) => this.getIssue(projectId, issueIid),
     );
 
-    this.server.tool(
-      "get_todos",
-      "Get a list of to-do items (paginated)",
-      GetTodosArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_get_todos",
+      {
+        title: "Get Todos",
+        description: "Get a list of to-do items (paginated)",
+        inputSchema: GetTodosArgsSchema,
+      },
       async (args) => this.getTodos(args),
     );
 
-    this.server.tool(
-      "get_wiki_page",
-      "Get a wiki page for a given project",
-      GetWikiPageArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_get_wiki_page",
+      {
+        title: "Get Wiki Page",
+        description: "Get a wiki page for a given project",
+        inputSchema: GetWikiPageArgsSchema,
+      },
       async ({ projectId, slug, render_html, version }) =>
         this.getWikiPage(projectId, slug, render_html, version),
     );
 
-    this.server.tool(
-      "list_wiki_pages",
-      "Get all wiki pages for a given project. (paginated)",
-      ListWikiPagesArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_list_wiki_pages",
+      {
+        title: "List Wiki Pages",
+        description: "Get all wiki pages for a given project. (paginated)",
+        inputSchema: ListWikiPagesArgsSchema,
+      },
       async ({ projectId, with_content, page }) =>
         this.listWikiPages(projectId, with_content, page),
     );
 
-    this.server.tool(
-      "create_issue",
-      "Create a new issue in a project",
-      CreateIssueArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_create_issue",
+      {
+        title: "Create Issue",
+        description: "Create a new issue in a project",
+        inputSchema: CreateIssueArgsSchema,
+      },
       async (args) => this.createIssue(args),
     );
 
-    this.server.tool(
-      "edit_issue",
-      "Edit an existing issue in a project",
-      EditIssueArgsSchema.shape,
+    this.server.registerTool(
+      "gitlab_edit_issue",
+      {
+        title: "Edit Issue",
+        description: "Edit an existing issue in a project",
+        inputSchema: EditIssueArgsSchema,
+      },
       async (args) => this.editIssue(args),
     );
   }
@@ -593,7 +623,7 @@ class GitlabServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("GitLab MCP server running on stdio (using server.tool)"); // Updated log message
+    console.error("GitLab MCP server running on stdio (using server.registerTool)"); // Updated log message
   }
 }
 

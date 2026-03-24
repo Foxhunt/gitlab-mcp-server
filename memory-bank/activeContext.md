@@ -10,12 +10,14 @@ Implementing the core functionality of the GitLab MCP server, including:
 
 ## Recent Changes
 
-- Renamed `get_issue_comments` to `get_issue_notes`.
-- Added basic pagination to `list_projects`.
-- Added basic filtering to `get_issues`.
+- Renamed `get_issue_comments` to `gitlab_get_issue_notes`.
+- Added basic pagination to `gitlab_list_projects`.
+- Added basic filtering to `gitlab_get_issues`.
 - Improved error handling.
-- Added search tool.
-- Added `create_issue` and `edit_issue` tools.
+- Added `gitlab_search` tool.
+- Added `gitlab_create_issue` and `gitlab_edit_issue` tools.
+- Updated deprecated `server.tool` MCP API calls to `server.registerTool`.
+- Prefixed all tools with `gitlab_` to adhere to MCP documentation best practices and avoid collisions.
 
 ## Next Steps
 
