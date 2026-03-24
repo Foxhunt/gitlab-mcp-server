@@ -12,9 +12,12 @@
 - `gitlab_get_issue` tool implemented.
 - `gitlab_get_todos` tool implemented.
 - `gitlab_get_wiki_page` tool implemented (supports both numeric IDs and project path slugs).
-- `gitlab_list_wiki_pages` tool implemented (supports both numeric IDs and project path slugs).
 - `gitlab_create_issue` tool implemented.
 - `gitlab_edit_issue` tool implemented.
+- `gitlab_list_milestones` tool implemented.
+- `gitlab_create_branch` tool implemented.
+- `gitlab_create_merge_request` tool implemented.
+- `gitlab_edit_merge_request` tool implemented.
 
 ## What's Left to Build
 

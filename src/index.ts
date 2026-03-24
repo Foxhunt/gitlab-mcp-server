@@ -171,6 +171,38 @@ const EditIssueArgsSchema = z.object({
   confidential: z.boolean().optional().describe("Set an issue to be confidential"),
 });
 
+const ListMilestonesArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  state: z.enum(["active", "closed"]).optional().describe("Return only milestones with the given state"),
+  search: z.string().optional().describe("Return milestones containing the search string"),
+  page: z.number().optional().describe("Page number (default: 1)"),
+});
+
+const CreateBranchArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  branch: z.string().describe("Name for the new branch"),
+  ref: z.string().describe("Branch name or commit SHA to create branch from"),
+});
+
+const CreateMergeRequestArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  source_branch: z.string().describe("The source branch"),
+  target_branch: z.string().describe("The target branch"),
+  title: z.string().describe("Title of MR"),
+  description: z.string().optional().describe("Description of MR (e.g., 'Closes #123')"),
+  assignee_id: z.number().optional().describe("Assignee user ID"),
+});
+
+const EditMergeRequestArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  merge_request_iid: z.string().describe("The internal ID of the merge request"),
+  target_branch: z.string().optional().describe("The target branch"),
+  title: z.string().optional().describe("Title of MR"),
+  description: z.string().optional().describe("Description of MR"),
+  assignee_id: z.number().optional().describe("Assignee user ID"),
+  state_event: z.enum(["close", "reopen"]).optional().describe("State event for the MR (close or reopen)"),
+});
+
 class GitlabServer {
   private server: McpServer;
   private axiosInstance;
@@ -363,6 +395,46 @@ class GitlabServer {
         inputSchema: EditIssueArgsSchema,
       },
       async (args) => this.editIssue(args),
+    );
+
+    this.server.registerTool(
+      "gitlab_list_milestones",
+      {
+        title: "List Milestones",
+        description: "Get a list of project milestones (paginated)",
+        inputSchema: ListMilestonesArgsSchema,
+      },
+      async (args) => this.listMilestones(args),
+    );
+
+    this.server.registerTool(
+      "gitlab_create_branch",
+      {
+        title: "Create Branch",
+        description: "Create a new branch in the project",
+        inputSchema: CreateBranchArgsSchema,
+      },
+      async (args) => this.createBranch(args),
+    );
+
+    this.server.registerTool(
+      "gitlab_create_merge_request",
+      {
+        title: "Create Merge Request",
+        description: "Create a new merge request",
+        inputSchema: CreateMergeRequestArgsSchema,
+      },
+      async (args) => this.createMergeRequest(args),
+    );
+
+    this.server.registerTool(
+      "gitlab_edit_merge_request",
+      {
+        title: "Edit Merge Request",
+        description: "Update an existing merge request",
+        inputSchema: EditMergeRequestArgsSchema,
+      },
+      async (args) => this.editMergeRequest(args),
     );
   }
 
@@ -619,6 +691,84 @@ class GitlabServer {
     }
   }
 
+  private async listMilestones(args: z.infer<typeof ListMilestonesArgsSchema>) {
+    try {
+      const { projectId, ...params } = args;
+      const response = await this.axiosInstance.get(
+        `projects/${encodeURIComponent(projectId)}/milestones`,
+        {
+          params: {
+            ...params,
+            per_page: 100,
+            page: args.page || 1,
+          },
+        },
+      );
+      return this.createPaginatedResponse(response.data, response.headers);
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async createBranch(args: z.infer<typeof CreateBranchArgsSchema>) {
+    try {
+      const { projectId, ...data } = args;
+      const response = await this.axiosInstance.post(
+        `projects/${encodeURIComponent(projectId)}/repository/branches`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async createMergeRequest(args: z.infer<typeof CreateMergeRequestArgsSchema>) {
+    try {
+      const { projectId, ...data } = args;
+      const response = await this.axiosInstance.post(
+        `projects/${encodeURIComponent(projectId)}/merge_requests`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async editMergeRequest(args: z.infer<typeof EditMergeRequestArgsSchema>) {
+    try {
+      const { projectId, merge_request_iid, ...data } = args;
+      const response = await this.axiosInstance.put(
+        `projects/${encodeURIComponent(projectId)}/merge_requests/${merge_request_iid}`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
 
   async run() {
     const transport = new StdioServerTransport();
