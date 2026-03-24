@@ -13,6 +13,8 @@
 - `get_todos` tool implemented.
 - `get_wiki_page` tool implemented (supports both numeric IDs and project path slugs).
 - `list_wiki_pages` tool implemented (supports both numeric IDs and project path slugs).
+- `create_issue` tool implemented.
+- `edit_issue` tool implemented.
 
 ## What's Left to Build
 

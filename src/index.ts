@@ -150,6 +150,27 @@ const ListProjectsArgsSchema = z.object({
   page: z.number().optional().describe("Page number (default: 1)"),
 });
 
+const CreateIssueArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  title: z.string().describe("The title of an issue"),
+  description: z.string().optional().describe("The description of an issue"),
+  assignee_ids: z.array(z.number()).optional().describe("The IDs of the users to assign the issue to"),
+  labels: z.string().optional().describe("Comma-separated label names for an issue"),
+  milestone_id: z.number().optional().describe("The global ID of a milestone to assign issue to"),
+  confidential: z.boolean().optional().describe("Set an issue to be confidential"),
+});
+
+const EditIssueArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  issueIid: z.string().describe("The internal ID of a project's issue"),
+  title: z.string().optional().describe("The title of an issue"),
+  description: z.string().optional().describe("The description of an issue"),
+  assignee_ids: z.array(z.number()).optional().describe("The IDs of the users to assign the issue to"),
+  labels: z.string().optional().describe("Comma-separated label names for an issue"),
+  state_event: z.enum(["close", "reopen"]).optional().describe("State event for an issue (close or reopen)"),
+  confidential: z.boolean().optional().describe("Set an issue to be confidential"),
+});
+
 class GitlabServer {
   private server: McpServer;
   private axiosInstance;
@@ -298,6 +319,20 @@ class GitlabServer {
       ListWikiPagesArgsSchema.shape,
       async ({ projectId, with_content, page }) =>
         this.listWikiPages(projectId, with_content, page),
+    );
+
+    this.server.tool(
+      "create_issue",
+      "Create a new issue in a project",
+      CreateIssueArgsSchema.shape,
+      async (args) => this.createIssue(args),
+    );
+
+    this.server.tool(
+      "edit_issue",
+      "Edit an existing issue in a project",
+      EditIssueArgsSchema.shape,
+      async (args) => this.editIssue(args),
     );
   }
 
@@ -513,6 +548,47 @@ class GitlabServer {
       return this.handleApiError(error);
     }
   }
+
+  private async createIssue(args: z.infer<typeof CreateIssueArgsSchema>) {
+    try {
+      const { projectId, ...data } = args;
+      const response = await this.axiosInstance.post(
+        `projects/${encodeURIComponent(projectId)}/issues`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async editIssue(args: z.infer<typeof EditIssueArgsSchema>) {
+    try {
+      const { projectId, issueIid, ...data } = args;
+      const response = await this.axiosInstance.put(
+        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
 
   async run() {
     const transport = new StdioServerTransport();

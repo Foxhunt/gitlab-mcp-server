@@ -15,6 +15,7 @@ Implementing the core functionality of the GitLab MCP server, including:
 - Added basic filtering to `get_issues`.
 - Improved error handling.
 - Added search tool.
+- Added `create_issue` and `edit_issue` tools.
 
 ## Next Steps
 
