@@ -228,6 +228,63 @@ class GitlabServer {
     });
 
     this.setupToolHandlers(); // Renamed for clarity, but now defines tools directly
+    this.setupPrompts();
+  }
+
+  private setupPrompts() {
+    this.server.registerPrompt(
+      "gitlab_issue_to_mr",
+      {
+        title: "GitLab Issue to Merge Request Workflow",
+        description:
+          "Guides you through the full GitLab workflow: from an issue (new or existing) to a linked Draft Merge Request. " +
+          "Provide a projectId and optionally an existing issueIid to skip issue creation.",
+        argsSchema: {
+          projectId: z.string().describe("The ID or URL-encoded path of the project"),
+          issueIid: z
+            .string()
+            .optional()
+            .describe("Optional IID of an existing issue. If omitted, a new issue will be created."),
+        },
+      },
+      ({ projectId, issueIid }) => {
+        const issueStep = issueIid
+          ? `An existing issue (#${issueIid}) has been provided. ` +
+            `First, call gitlab_get_issue with projectId="${projectId}" and issueIid="${issueIid}" to retrieve its details. ` +
+            `If it needs a milestone, call gitlab_list_milestones to find one, then gitlab_edit_issue to assign it.`
+          : `No existing issue was provided. Follow these steps:\n` +
+            `1. Call gitlab_list_milestones with projectId="${projectId}" and state="active" to find an appropriate milestone.\n` +
+            `2. Ask the user for a title and description for the new issue.\n` +
+            `3. Call gitlab_create_issue with the projectId, title, description, and optionally the milestone_id from step 1.\n` +
+            `4. Note the issue iid from the response.`;
+
+        const branchAndMrSteps =
+          `Once you have the issue iid, proceed as follows:\n` +
+          `1. Create a branch: Call gitlab_create_branch with projectId="${projectId}", ` +
+          `branch="<iid>-<short-description>" (e.g., "42-fix-login-bug"), and ref="dev".\n` +
+          `2. Open a Draft Merge Request: Call gitlab_create_merge_request with projectId="${projectId}", ` +
+          `source_branch (the branch you just created), target_branch="dev", ` +
+          `title="Draft: Resolve #<iid> - <issue title>", and description="Closes #<iid>".\n` +
+          `   Including "Closes #<iid>" ensures GitLab auto-closes the issue when the MR is merged.\n` +
+          `3. Report the web_url of both the issue and the merge request to the user.`;
+
+        return {
+          messages: [
+            {
+              role: "user" as const,
+              content: {
+                type: "text" as const,
+                text:
+                  `You are guiding the user through the GitLab Issue-to-Merge-Request workflow ` +
+                  `for project "${projectId}".\n\n` +
+                  `## Step 1: Establish the Issue\n${issueStep}\n\n` +
+                  `## Step 2: Create Branch and Draft MR\n${branchAndMrSteps}`,
+              },
+            },
+          ],
+        };
+      },
+    );
   }
 
   // Centralized error handling for API calls
