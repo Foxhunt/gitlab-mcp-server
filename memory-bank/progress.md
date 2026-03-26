@@ -14,6 +14,7 @@
 - `gitlab_get_wiki_page` tool implemented (supports both numeric IDs and project path slugs).
 - `gitlab_create_issue` tool implemented.
 - `gitlab_edit_issue` tool implemented.
+- `gitlab_create_issue_note` tool implemented.
 - `gitlab_list_milestones` tool implemented.
 - `gitlab_create_branch` tool implemented.
 - `gitlab_create_merge_request` tool implemented.

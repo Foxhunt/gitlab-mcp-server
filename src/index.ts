@@ -62,6 +62,15 @@ const GetIssueNotesArgsSchema = z.object({
   page: z.number().optional().describe("Page number (default: 1)"),
 });
 
+const CreateIssueNoteArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  issueIid: z.string().describe("The internal ID of a project's issue"),
+  body: z.string().describe("The content of the note/comment"),
+  confidential: z.boolean().optional().describe("Deprecated: Scheduled to be removed in GitLab 16.0. Use 'internal' instead."),
+  internal: z.boolean().optional().describe("The internal flag of a note. Overrides confidential. Default is false."),
+  created_at: z.string().optional().describe("Date time string, ISO 8601 formatted. Example: 2016-03-11T03:45:40Z"),
+});
+
 const SearchArgsSchema = z.object({
   projectId: z
     .string()
@@ -379,6 +388,22 @@ class GitlabServer {
       },
       async ({ projectId, issueIid, page }) =>
         this.getIssueNotes(projectId, issueIid, page),
+    );
+
+    this.server.registerTool(
+      "gitlab_create_issue_note",
+      {
+        title: "Create Issue Note",
+        description: "Create a new note/comment on an issue",
+        inputSchema: CreateIssueNoteArgsSchema,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false
+        }
+      },
+      async (args) => this.createIssueNote(args),
     );
 
     this.server.registerTool(
@@ -703,6 +728,27 @@ class GitlabServer {
       }));
 
       return this.createPaginatedResponse(notes, response.headers);
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async createIssueNote(args: z.infer<typeof CreateIssueNoteArgsSchema>) {
+    try {
+      const { projectId, issueIid, ...data } = args;
+      const response = await this.axiosInstance.post(
+        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+        structuredContent: response.data
+      };
     } catch (error) {
       return this.handleApiError(error);
     }

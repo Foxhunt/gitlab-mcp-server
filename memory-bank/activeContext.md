@@ -18,6 +18,7 @@ Implementing the core functionality of the GitLab MCP server, including:
 - Added `gitlab_create_issue` and `gitlab_edit_issue` tools.
 - Prefixed all tools with `gitlab_` to adhere to MCP documentation best practices and avoid collisions.
 - Finished adding full GitLab workflow tools for issues and MRs: `gitlab_list_milestones`, `gitlab_create_branch`, `gitlab_create_merge_request`, and `gitlab_edit_merge_request`.
+- Added `gitlab_create_issue_note` tool to allow creating comments on existing issues.
 
 ## Next Steps
 
