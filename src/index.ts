@@ -58,13 +58,13 @@ const GetIssuesArgsSchema = z.object({
 
 const GetIssueNotesArgsSchema = z.object({
   projectId: z.string().describe("Project ID"),
-  issueIid: z.string().describe("Issue IID"),
+  issueIid: z.union([z.string(), z.number()]).transform(String).describe("Issue IID"),
   page: z.number().optional().describe("Page number (default: 1)"),
 });
 
 const CreateIssueNoteArgsSchema = z.object({
   projectId: z.string().describe("The ID or URL-encoded path of the project"),
-  issueIid: z.string().describe("The internal ID of a project's issue"),
+  issueIid: z.union([z.string(), z.number()]).transform(String).describe("The internal ID of a project's issue"),
   body: z.string().describe("The content of the note/comment"),
   confidential: z.boolean().optional().describe("Deprecated: Scheduled to be removed in GitLab 16.0. Use 'internal' instead."),
   internal: z.boolean().optional().describe("The internal flag of a note. Overrides confidential. Default is false."),
@@ -100,7 +100,7 @@ const GetIssueArgsSchema = z.object({
     .describe(
       "The ID or URL-encoded path of the project owned by the authenticated user",
     ),
-  issueIid: z.string().describe("The internal ID of a project's issue"),
+  issueIid: z.union([z.string(), z.number()]).transform(String).describe("The internal ID of a project's issue"),
 });
 
 const GetTodosArgsSchema = z.object({
@@ -171,7 +171,7 @@ const CreateIssueArgsSchema = z.object({
 
 const EditIssueArgsSchema = z.object({
   projectId: z.string().describe("The ID or URL-encoded path of the project"),
-  issueIid: z.string().describe("The internal ID of a project's issue"),
+  issueIid: z.union([z.string(), z.number()]).transform(String).describe("The internal ID of a project's issue"),
   title: z.string().optional().describe("The title of an issue"),
   description: z.string().optional().describe("The description of an issue"),
   assignee_ids: z.array(z.number()).optional().describe("The IDs of the users to assign the issue to"),
@@ -204,7 +204,7 @@ const CreateMergeRequestArgsSchema = z.object({
 
 const EditMergeRequestArgsSchema = z.object({
   projectId: z.string().describe("The ID or URL-encoded path of the project"),
-  merge_request_iid: z.string().describe("The internal ID of the merge request"),
+  merge_request_iid: z.union([z.string(), z.number()]).transform(String).describe("The internal ID of the merge request"),
   target_branch: z.string().optional().describe("The target branch"),
   title: z.string().optional().describe("Title of MR"),
   description: z.string().optional().describe("Description of MR"),
