@@ -71,6 +71,13 @@ const CreateIssueNoteArgsSchema = z.object({
   created_at: z.string().optional().describe("Date time string, ISO 8601 formatted. Example: 2016-03-11T03:45:40Z"),
 });
 
+const EditIssueNoteArgsSchema = z.object({
+  projectId: z.string().describe("The ID or URL-encoded path of the project"),
+  issueIid: z.union([z.string(), z.number()]).transform(String).describe("The internal ID of a project's issue"),
+  noteId: z.union([z.string(), z.number()]).transform(String).describe("The ID of the note/comment"),
+  body: z.string().describe("The content of the note/comment"),
+});
+
 const SearchArgsSchema = z.object({
   projectId: z
     .string()
@@ -407,6 +414,16 @@ class GitlabServer {
     );
 
     this.server.registerTool(
+      "gitlab_edit_issue_note",
+      {
+        title: "Edit Issue Note",
+        description: "Edit an existing note/comment on an issue",
+        inputSchema: EditIssueNoteArgsSchema,
+      },
+      async (args) => this.editIssueNote(args),
+    );
+
+    this.server.registerTool(
       "gitlab_search",
       {
         title: "Search",
@@ -738,6 +755,27 @@ class GitlabServer {
       const { projectId, issueIid, ...data } = args;
       const response = await this.axiosInstance.post(
         `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes`,
+        data
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+        structuredContent: response.data
+      };
+    } catch (error) {
+      return this.handleApiError(error);
+    }
+  }
+
+  private async editIssueNote(args: z.infer<typeof EditIssueNoteArgsSchema>) {
+    try {
+      const { projectId, issueIid, noteId, ...data } = args;
+      const response = await this.axiosInstance.put(
+        `projects/${encodeURIComponent(projectId)}/issues/${issueIid}/notes/${noteId}`,
         data
       );
       return {
